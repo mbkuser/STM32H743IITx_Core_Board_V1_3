@@ -1,3 +1,10 @@
 Release/
 Debug/
-
+*.o
+*.d
+*.lst
+*.map
+*.elf
+*.hex
+*.bin
+.DS_Store
