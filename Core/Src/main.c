@@ -169,7 +169,7 @@ void TIM17_PID_Init(float kp, float ki, float kd)
 ITCM_CODE
 void fill_screen(uint16_t color)
 {
-	/*
+/*
 	  uint32_t odr;
 
 	  // get current Output Data Register value
@@ -178,7 +178,11 @@ void fill_screen(uint16_t color)
 	  // Set selected pins that were at low level, and reset ones that were high
 	  GPIOB->BSRR = ((odr & GPIO_PIN_1) << 16U) | (~odr & GPIO_PIN_1);
 */
-	HAL_GPIO_TogglePin(LED1_GREEN_GPIO_Port, LED1_GREEN_Pin);
+	//HAL_GPIO_TogglePin(LED1_GREEN_GPIO_Port, LED1_GREEN_Pin);
+
+	GPIOB->BSRR = GPIO_PIN_1;           // Установить пин
+
+	//GPIOB->ODR ^= GPIO_PIN_1;  // Одна инструкция!
 
 //    for (int i = 0; i < 800 * 480; i++)
 //    {
@@ -188,9 +192,21 @@ void fill_screen(uint16_t color)
     //memset(video_framebuffer, (uint8_t)color, 800 * 480 * 2);
 //	for (count_speed = 0; count_speed < 300000; count_speed++){;}
 //	for (int32_t i = 0; i < 300000; i++){int32_t x = i;}
-	for (int32_t i = 0; i < 300000; i++){;}
+	for (int32_t i = 0; i < 100; i++){;}
 
-	HAL_GPIO_TogglePin(LED1_GREEN_GPIO_Port, LED1_GREEN_Pin);
+	//HAL_GPIO_TogglePin(LED1_GREEN_GPIO_Port, LED1_GREEN_Pin);
+
+	GPIOB->BSRR = (GPIO_PIN_1 << 16);  // Сбросить пин
+
+	//GPIOB->ODR ^= GPIO_PIN_1;  // Одна инструкция!
+
+/*
+	  // get current Output Data Register value
+	  odr = GPIOB->ODR;
+
+	  // Set selected pins that were at low level, and reset ones that were high
+	  GPIOB->BSRR = ((odr & GPIO_PIN_1) << 16U) | (~odr & GPIO_PIN_1);
+*/
 }
 
 /* Явное включение TCM — безопасно вызывать даже если уже включена */
