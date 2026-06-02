@@ -23,7 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "sdram.h"
-
+//добавил git
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
