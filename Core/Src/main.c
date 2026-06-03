@@ -767,7 +767,7 @@ static void MX_FMC_Init(void)
   /* SdramTiming */
   SdramTiming.LoadToActiveDelay = 2;
   SdramTiming.ExitSelfRefreshDelay = 9;
-  SdramTiming.SelfRefreshTime = 6;
+  SdramTiming.SelfRefreshTime = 4;
   SdramTiming.RowCycleDelay = 8;
   SdramTiming.WriteRecoveryTime = 3;
   SdramTiming.RPDelay = 3;
@@ -863,8 +863,8 @@ void MPU_Config(void)
   MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
   MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
   MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
   /* Enables the MPU */
