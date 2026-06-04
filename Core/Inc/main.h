@@ -36,16 +36,6 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-/* ── Структура PID регулятора ── */
-typedef struct {
-    float kp;           /* коэффициент пропорциональный */
-    float ki;           /* коэффициент интегральный     */
-    float kd;           /* коэффициент дифференциальный */
-    float integral;     /* накопленная интегральная часть */
-    float prev_error;   /* предыдущая ошибка для D-части */
-    float output_min;   /* ограничение выхода снизу      */
-    float output_max;   /* ограничение выхода сверху     */
-} PID_TypeDef;
 
 /* USER CODE END ET */
 
@@ -63,7 +53,6 @@ typedef struct {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-float PID_Compute(PID_TypeDef *pid, float setpoint, float measured);
 
 /* USER CODE END EFP */
 

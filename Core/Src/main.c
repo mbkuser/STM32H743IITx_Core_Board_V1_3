@@ -60,6 +60,8 @@ extern volatile uint8_t key0_pressed_flag;
 extern volatile uint8_t key0_released_flag;
 extern volatile uint8_t wk_up_pressed_flag;
 
+//extern volatile uint32_t *buf;
+
 
 /* USER CODE END PV */
 
@@ -93,19 +95,6 @@ volatile int32_t  count_speed;	/* для проверки быстродейст
 
 DTCM_DATA float pid_output_scale = 1000.0f;   /* масштаб ШИМ */
 
-/* Структура PID с начальными значениями по умолчанию */
-DTCM_DATA PID_TypeDef pid_speed = {
-    .kp         = 1.2f,
-    .ki         = 0.05f,
-    .kd         = 0.01f,
-    .integral   = 0.0f,
-    .prev_error = 0.0f,
-    .output_min = -999.0f,
-    .output_max =  999.0f,
-};
-
-//DTCM_DATA volatile int32_t  count_speed;	/* для проверки быстродействия       */
-
 /* ── Неинициализированные переменные (.dtcm_bss) ──
    Обнуляются при старте, не занимают место во Flash           */
 
@@ -115,55 +104,9 @@ DTCM_BSS volatile float    motor_speed;    /* скорость об/мин      
 DTCM_BSS volatile uint32_t tim17_tick;     /* счётчик вызовов ISR    */
 DTCM_BSS volatile float    speed_setpoint; /* уставка скорости       */
 
-//DTCM_BSS volatile int32_t  count_speed;	/* для проверки быстродействия       */
-
 /* ── Буфер для осциллограммы (не инициализируем) ──            */
 DTCM_NOINIT float speed_log[256];          /* кольцевой буфер        */
 DTCM_NOINIT uint8_t speed_log_idx;         /* индекс в буфере        */
-
-//DTCM_NOINIT volatile int32_t  count_speed;	/* для проверки быстродействия       */
-
-/* ── Вспомогательная функция PID — тоже в ITCM ── */
-ITCM_CODE
-float PID_Compute(PID_TypeDef *pid, float setpoint, float measured)
-{
-    float error  = setpoint - measured;
-    float output;
-
-    /* P */
-    output = pid->kp * error;
-
-    /* I — с ограничением накопления */
-    pid->integral += pid->ki * error;
-    if      (pid->integral > pid->output_max) pid->integral = pid->output_max;
-    else if (pid->integral < pid->output_min) pid->integral = pid->output_min;
-    output += pid->integral;
-
-    /* D */
-    output += pid->kd * (error - pid->prev_error);
-    pid->prev_error = error;
-
-    /* Ограничение выхода */
-    if      (output > pid->output_max) output = pid->output_max;
-    else if (output < pid->output_min) output = pid->output_min;
-
-    return output;
-}
-
-/* =============================================================
-   Инициализация — вызвать из main() после MX_TIM17_Init()
-   ============================================================= */
-void TIM17_PID_Init(float kp, float ki, float kd)
-{
-    pid_speed.kp         = kp;
-    pid_speed.ki         = ki;
-    pid_speed.kd         = kd;
-    pid_speed.integral   = 0.0f;
-    pid_speed.prev_error = 0.0f;
-
-    speed_setpoint = 0.0f;
-    speed_log_idx  = 0;
-}
 
 /* Использование как обычных переменных */
 ITCM_CODE
@@ -445,7 +388,7 @@ float pid_integral = 0.0f;
 
   /* Enable D-Cache---------------------------------------------------------*/
   SCB_EnableDCache();
-
+  //SCB_DisableDCache();
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -469,6 +412,21 @@ float pid_integral = 0.0f;
   MX_USB_DEVICE_Init();
   MX_TIM17_Init();
   /* USER CODE BEGIN 2 */
+
+
+
+//  printf("SYSCLK=%lu\r\n", HAL_RCC_GetSysClockFreq());
+//  printf("HCLK=%lu\r\n", HAL_RCC_GetHCLKFreq());
+//  uint32_t v_SYSCLK = HAL_RCC_GetSysClockFreq();	//SYSCLK=480000000
+//  uint32_t v_HCLK   = HAL_RCC_GetHCLKFreq();		//HCLK=240000000 Если это так, дальше считаем, что SDCLK = 120 МГц.
+
+  // Включение счётчика тактов (DWT_CYCCNT)
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+  DWT->CYCCNT = 0;
+  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+
+  // Пауза для стабилизации
+  HAL_Delay(100);
 
   /* Инициализация самой SDRAM */
   if (SDRAM_Init(&hsdram1) != HAL_OK)
@@ -497,12 +455,6 @@ float pid_integral = 0.0f;
       Error_Handler();  /* Мигаем светодиодом или встаём в бесконечный цикл */
   }
 
-  /* Настраиваем PID */
-  TIM17_PID_Init(1.2f, 0.05f, 0.01f);
-
-  /* Устанавливаем уставку скорости */
-  speed_setpoint = 300.0f;   /* 300 об/мин */
-
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LED1_GREEN_Pin, GPIO_PIN_RESET);
 
@@ -519,7 +471,9 @@ float pid_integral = 0.0f;
 		  HAL_GPIO_TogglePin(LED0_RED_GPIO_Port, LED0_RED_Pin);
 		  //HAL_GPIO_TogglePin(LED1_GREEN_GPIO_Port, LED1_GREEN_Pin);
 
-		  fill_screen(0x1234);
+		  //fill_screen(0x1234);
+
+		  SDRAM_Performance();
 
 	      /* Главный цикл читает данные из DTCM — тоже быстро */
 	      //float spd = motor_speed;          /* DTCM переменная */
@@ -767,7 +721,7 @@ static void MX_FMC_Init(void)
   /* SdramTiming */
   SdramTiming.LoadToActiveDelay = 2;
   SdramTiming.ExitSelfRefreshDelay = 9;
-  SdramTiming.SelfRefreshTime = 4;
+  SdramTiming.SelfRefreshTime = 6;
   SdramTiming.RowCycleDelay = 8;
   SdramTiming.WriteRecoveryTime = 3;
   SdramTiming.RPDelay = 3;
@@ -859,12 +813,14 @@ void MPU_Config(void)
   MPU_InitStruct.BaseAddress = 0xC0000000;
   MPU_InitStruct.Size = MPU_REGION_SIZE_32MB;
   MPU_InitStruct.SubRegionDisable = 0x0;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
   MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
   MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
   MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
   MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
   MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+  //  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+  //  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
   /* Enables the MPU */

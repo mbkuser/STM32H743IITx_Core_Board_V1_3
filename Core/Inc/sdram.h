@@ -17,6 +17,8 @@
 #define SDRAM_SIZE          (32 * 1024 * 1024)  /* 32 МБайт */
 #define SDRAM_TIMEOUT       0xFFFFUL
 
+#define TEST_WORDS (1024*1024)
+
 /* Регистр режима SDRAM (Mode Register) */
 #define SDRAM_MODEREG_BURST_LENGTH_1          0x0000U
 #define SDRAM_MODEREG_BURST_LENGTH_2          0x0001U
@@ -31,6 +33,7 @@
 HAL_StatusTypeDef SDRAM_Init(SDRAM_HandleTypeDef *hsdram);
 HAL_StatusTypeDef SDRAM_Test(void);
 
+void SDRAM_Performance(void);
 
 #endif /* INC_SDRAM_H_ */
 

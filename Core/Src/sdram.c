@@ -9,6 +9,12 @@
 #include <string.h>
 #include "main.h"
 
+
+uint32_t * const sdram = (uint32_t *)0xC0000000;
+
+uint32_t *src = (uint32_t*)0xC0000000;
+uint32_t *dst = (uint32_t*)0xC0400000;
+
 /**
  * @brief  Полная инициализационная последовательность SDRAM
  *         согласно спецификации W9825G6KH-6
@@ -182,14 +188,124 @@ HAL_StatusTypeDef SDRAM_Test(void)
     for (uint32_t i = 0; i < size_words; i++)
         sdram[i] = i;
 
-    SCB_CleanInvalidateDCache();
+//    SCB_CleanInvalidateDCache();
+    __DSB();
+    __ISB();
 
     for (uint32_t i = 0; i < size_words; i++)
     {
         if (sdram[i] != i) return HAL_ERROR;
     }
 
+    /* --- Тест 4: Паттерн 0x00000000 --- */
+    for(uint32_t i=0;i<size_words;i++)
+        sdram[i]=0x00000000UL;
+
+    __DSB();
+    __ISB();
+
+    for (uint32_t i = 0; i < size_words; i++)
+    {
+        if (sdram[i] != 0x00000000UL) return HAL_ERROR;
+    }
+
+    /* --- Тест 5: Паттерн 0xFFFFFFFF --- */
+    for(uint32_t i=0;i<size_words;i++)
+        sdram[i]=0xFFFFFFFFUL;
+
+    __DSB();
+    __ISB();
+
+    for (uint32_t i = 0; i < size_words; i++)
+    {
+        if (sdram[i] != 0xFFFFFFFFUL) return HAL_ERROR;
+    }
+
+
     return HAL_OK;
+}
+
+void SDRAM_Performance(void)
+{
+	// Измерить скорость записи
+	uint32_t start,end;
+
+	GPIOB->BSRR = GPIO_PIN_1;           // Установить пин
+	start = DWT->CYCCNT;
+	for (uint32_t i = 0; i < TEST_WORDS; i += 8) {
+	    sdram[i]   = i;
+	    sdram[i+1] = i+1;
+	    sdram[i+2] = i+2;
+	    sdram[i+3] = i+3;
+	    sdram[i+4] = i+4;
+	    sdram[i+5] = i+5;
+	    sdram[i+6] = i+6;
+	    sdram[i+7] = i+7;
+	}	/* дополнительно читаем последнее слово */
+	volatile uint32_t tmp = sdram[TEST_WORDS - 1];
+	__DSB();   // Data Synchronization Barrier
+	end = DWT->CYCCNT;
+	GPIOB->BSRR = (GPIO_PIN_1 << 16);  // Сбросить пин
+
+	float time_s_wr =	(float)(end-start)/480000000.0f;
+	float mbps_wr = (TEST_WORDS*4.0f)/time_s_wr/1024.0f/1024.0f;	//скорость записи MB/s
+
+	GPIOB->BSRR = (GPIO_PIN_1 << 16);  // Сбросить пин
+//	GPIOB->BSRR = GPIO_PIN_1;           // Установить пин
+	/*
+
+	//---------------------------------------------------
+	//Измерить скорость чтения
+	volatile uint32_t sum=0;
+
+	start = DWT->CYCCNT;
+	for(uint32_t i=0;i<TEST_WORDS;i++)
+	{
+	    sum += sdram[i];
+	}
+	end = DWT->CYCCNT;
+	float time_s_rd =	(float)(end-start)/480000000.0f;
+	float mbps_rd = (TEST_WORDS*4.0f)/time_s_rd/1024.0f/1024.0f;	//скорость чтения MB/s
+
+	start = DWT->CYCCNT;
+	for(uint32_t i=0;i<TEST_WORDS;i+=16)
+	{
+	    sum += sdram[i];
+	}
+	end = DWT->CYCCNT;
+	time_s_rd =	(float)(end-start)/480000000.0f;
+	mbps_rd = ((TEST_WORDS/16)*4.0f)/time_s_rd/1024.0f/1024.0f;	//скорость чтения MB/s через 16
+
+
+	start = DWT->CYCCNT;
+	for(uint32_t i=0;i<TEST_WORDS;i+=64)
+	{
+	    sum += sdram[i];
+	}
+	end = DWT->CYCCNT;
+	time_s_rd =	(float)(end-start)/480000000.0f;
+	mbps_rd = ((TEST_WORDS/64)*4.0f)/time_s_rd/1024.0f/1024.0f;	//скорость чтения MB/s через 64
+
+
+	start = DWT->CYCCNT;
+	for(uint32_t i=0;i<TEST_WORDS;i+=256)
+	{
+	    sum += sdram[i];
+	}
+	end = DWT->CYCCNT;
+	time_s_rd =	(float)(end-start)/480000000.0f;
+	mbps_rd = ((TEST_WORDS/256)*4.0f)/time_s_rd/1024.0f/1024.0f;	//скорость чтения MB/s через 256
+//---------------------------------------------------
+
+	start = DWT->CYCCNT;
+	memcpy(dst, src, 4*1024*1024);
+	end = DWT->CYCCNT;
+	time_s_wr =	(float)(end-start)/480000000.0f;
+	mbps_wr = (TEST_WORDS*4.0f)/time_s_wr/1024.0f/1024.0f;	//скорость записи memcpy MB/s
+*/
+
+//	GPIOB->BSRR = (GPIO_PIN_1 << 16);  // Сбросить пин -------------DEBAG
+
 }
 
 /*
@@ -759,8 +875,45 @@ MPU_InitStruct.DisableExec     = MPU_INSTRUCTION_ACCESS_ENABLE; // XN=0
 Проблема: DMA-контроллер обращается к SDRAM напрямую, минуя кэш. В то же время процессор может работать с устаревшей копией данных
 в своем быстром кэше. В результате вы получаете ошибки и "битые" данные.
 
-Решение: В таких случаях необходимо вручную управлять согласованностью кэша. Перед запуском DMA на чтение из SDRAM нужно очистить
-кэш (SCB_CleanDCache_by_Addr), а после завершения DMA — инвалидировать кэш (SCB_InvalidateDCache_by_Addr), чтобы процессор загрузил
-свежие данные.
- */
+Решение: В таких случаях необходимо вручную управлять согласованностью кэша.
+Перед запуском DMA на чтение из SDRAM нужно очистить кэш (SCB_CleanDCache_by_Addr),
+а после завершения DMA — инвалидировать кэш (SCB_InvalidateDCache_by_Addr), чтобы процессор загрузил свежие данные.
 
+
+Обязательное обслуживание кэша при DMA
+Это главная сложность кэшируемой SDRAM. При работе с DMA (LTDC, DMA2D, DMA1/2) нужно явно синхронизировать кэш:
+---------------------------------------------------------------------------------------------------------------
+Перед тем как DMA ЧИТАЕТ из SDRAM (CPU предварительно записал туда данные)
+SCB_CleanDCache_by_Addr((uint32_t*)buf, size);
+Сбрасывает "грязные" строки кэша в SDRAM, иначе DMA прочитает устаревшие данные из памяти
+
+После того как DMA ЗАПИСАЛ в SDRAM (CPU хочет прочитать свежие данные)
+SCB_InvalidateDCache_by_Addr((uint32_t*)buf, size);
+Инвалидирует кэш-строки, иначе CPU прочитает старые данные из кэша, а не то что записал DMA
+
+Адрес и размер должны быть выровнены по границе кэш-строки (32 байта на Cortex-M7):
+-----------------------------------------------------------------------------------
+Выравнивание буфера обязательно
+__attribute__((aligned(32)))
+__attribute__((section(".sdram_section")))
+uint8_t dma_buf[1024];
+
+Перед запуском DMA-передачи:
+SCB_CleanDCache_by_Addr(
+    (uint32_t*)dma_buf,
+    (sizeof(dma_buf) + 31) & ~31  // округлить до 32 байт
+);
+HAL_DMA_Start(...);
+
+Когда использовать каждый вариант
+Если SDRAM используется преимущественно CPU (вычисления, LVGL, heap) — кэшируемый вариант даёт реальный прирост.
+Если SDRAM используется преимущественно DMA/LTDC — можно оставить некэшируемым и не писать лишний код синхронизации.
+Для смешанного случая можно сделать два MPU региона:
+
+Регион 0: основной кэшируемый (CPU данные)
+Базовый адрес: 0xC0000000, размер: 31 МБ, TEX=0, C=1, B=1
+
+Регион 1: некэшируемый для DMA/LTDC буферов
+Базовый адрес: 0xC1F00000, размер: 1 МБ, TEX=1, C=0, B=0
+Регион 1 перекрывает часть Региона 0 и имеет приоритет
+*/

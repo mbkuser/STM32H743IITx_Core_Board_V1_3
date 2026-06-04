@@ -65,15 +65,6 @@ volatile uint8_t key0_pressed_flag = 0;
 volatile uint8_t key0_released_flag = 0;
 volatile uint8_t wk_up_pressed_flag = 0;
 
-extern DTCM_BSS volatile int32_t  encoder_count;  /* текущий счёт энкодера  */
-extern DTCM_BSS volatile int32_t  encoder_prev;   /* предыдущий счёт        */
-extern DTCM_BSS volatile float    motor_speed;    /* скорость об/мин        */
-extern DTCM_BSS volatile uint32_t tim17_tick;     /* счётчик вызовов ISR    */
-extern DTCM_BSS volatile float    speed_setpoint; /* уставка скорости       */
-
-extern PID_TypeDef        pid_speed;
-
-extern float pid_output_scale;   /* масштаб ШИМ */
 
 /* USER CODE END EV */
 
@@ -351,32 +342,6 @@ void TIM17_IRQHandler(void)
         TIM17->SR = ~TIM_SR_UIF;   // сбросить флаг (запись 0 в бит)
         // ваш код
         tick_led++;
-
-        tim17_tick++;    /* счётчик в DTCM — 0 тактов ожидания */
-
-        /* ── Читаем энкодер (пример: TIM2 в режиме энкодера) ── */
-        int32_t current = (int32_t)TIM2->CNT;
-        int32_t delta   = current - encoder_prev;   /* оба в DTCM */
-        encoder_prev    = current;
-        encoder_count  += delta;
-
-        /* ── Считаем скорость об/мин ──
-           TIM17 срабатывает каждые 1 мс (1 кГц)
-           Энкодер 1000 импульсов/оборот, 4x = 4000 тиков/об     */
-        motor_speed = (float)delta * (1000.0f / 4000.0f) * 60.0f;
-
-        /* ── PID регулятор ── */
-        float pwm_value = PID_Compute(&pid_speed,       /* данные в DTCM */
-                                       speed_setpoint,
-                                       motor_speed);
-
-        /* ── Применяем ШИМ ── */
-        TIM1->CCR1 = (uint32_t)(pwm_value * pid_output_scale / 1000.0f
-                                 + pid_output_scale / 2.0f);
-
-        /* ── Логируем для отладки ── */
-        //speed_log[speed_log_idx] = motor_speed;
-        //speed_log_idx = (speed_log_idx + 1) & 0xFF;   /* & 255 */
     }
   /* USER CODE END TIM17_IRQn 0 */
   //HAL_TIM_IRQHandler(&htim17);
