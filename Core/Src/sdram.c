@@ -221,17 +221,42 @@ HAL_StatusTypeDef SDRAM_Test(void)
         if (sdram[i] != 0xFFFFFFFFUL) return HAL_ERROR;
     }
 
+    /* --- Тест 6: Паттерн 0x5A5A5A5A --- */
+    for(uint32_t i=0;i<size_words;i++)
+        sdram[i]=0x5A5A5A5AUL;
+
+    __DSB();
+    __ISB();
+
+    for (uint32_t i = 0; i < size_words; i++)
+    {
+        if (sdram[i] != 0x5A5A5A5AUL) return HAL_ERROR;
+    }
+
+    /* --- Тест 7: Паттерн 0xA5A5A5A5 --- */
+    for(uint32_t i=0;i<size_words;i++)
+        sdram[i]=0xA5A5A5A5UL;
+
+    __DSB();
+    __ISB();
+
+    for (uint32_t i = 0; i < size_words; i++)
+    {
+        if (sdram[i] != 0xA5A5A5A5UL) return HAL_ERROR;
+    }
 
     return HAL_OK;
 }
 
 void SDRAM_Performance(void)
 {
-	// Измерить скорость записи
+	// Измерить скорость записи #define TEST_WORDS (1024*1024)
 	uint32_t start,end;
 
-	GPIOB->BSRR = GPIO_PIN_1;           // Установить пин
-	start = DWT->CYCCNT;
+	GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
+
+	start = DWT->CYCCNT;											//3201187715
+
 	for (uint32_t i = 0; i < TEST_WORDS; i += 8) {
 	    sdram[i]   = i;
 	    sdram[i+1] = i+1;
@@ -241,32 +266,73 @@ void SDRAM_Performance(void)
 	    sdram[i+5] = i+5;
 	    sdram[i+6] = i+6;
 	    sdram[i+7] = i+7;
-	}	/* дополнительно читаем последнее слово */
-	volatile uint32_t tmp = sdram[TEST_WORDS - 1];
-	__DSB();   // Data Synchronization Barrier
-	end = DWT->CYCCNT;
+	}																//mbps_wr=221.425674 - почти равно 240 МБ/с т.е. максимуму
+
+//	__builtin_memset(sdram, 0, TEST_WORDS * 4);						//mbps_wr=152.19751
+
+	__DSB();   														// Data Synchronization Barrier
+
+	end = DWT->CYCCNT;												//3209858796
+
+	GPIOB->BSRR = (GPIO_PIN_1 << 16);  								// Сбросить LED1_GREEN_Pin
+
+	float time_s_wr =	(float)(end-start)/480000000.0f;			//0.0180647522
+/*
+	float mbps_wr = (TEST_WORDS*4.0f)/time_s_wr/1024.0f/1024.0f;	//223.615799 скорость записи MB/s
+
+	223.615799 MB/s write, 83.738533 MB/s reade
+	  SdramTiming.WriteRecoveryTime = 2;
+	  SdramTiming.RPDelay = 2;
+	  SdramTiming.RCDDelay = 2;
+*/
+	float mbps_wr = (TEST_WORDS*4.0f)/time_s_wr/1024.0f/1024.0f;	//221.425674 скорость записи MB/s
+/*
+	221.622177 MB/s write, 83.6975708 MB/s reade
+	  SdramTiming.WriteRecoveryTime = 3;
+	  SdramTiming.RPDelay = 3;
+	  SdramTiming.RCDDelay = 3;
+*/
 	GPIOB->BSRR = (GPIO_PIN_1 << 16);  // Сбросить пин
 
-	float time_s_wr =	(float)(end-start)/480000000.0f;
-	float mbps_wr = (TEST_WORDS*4.0f)/time_s_wr/1024.0f/1024.0f;	//скорость записи MB/s
-
-	GPIOB->BSRR = (GPIO_PIN_1 << 16);  // Сбросить пин
-//	GPIOB->BSRR = GPIO_PIN_1;           // Установить пин
-	/*
+	HAL_Delay(10); // Пауза 10 мс
 
 	//---------------------------------------------------
-	//Измерить скорость чтения
+	//Измерить скорость чтения #define TEST_WORDS (1024*1024)
 	volatile uint32_t sum=0;
 
-	start = DWT->CYCCNT;
-	for(uint32_t i=0;i<TEST_WORDS;i++)
-	{
-	    sum += sdram[i];
-	}
-	end = DWT->CYCCNT;
-	float time_s_rd =	(float)(end-start)/480000000.0f;
-	float mbps_rd = (TEST_WORDS*4.0f)/time_s_rd/1024.0f/1024.0f;	//скорость чтения MB/s
+	GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
 
+	start = DWT->CYCCNT;											//1687250779
+
+//	for(uint32_t i=0;i<TEST_WORDS;i++)
+//	{
+//	    sum += sdram[i];
+//	}
+
+	for(uint32_t i=0; i < TEST_WORDS; i += 8)
+	{
+	    __builtin_prefetch(&sdram[i+8], 0, 3);
+	    sum = sdram[i];
+	    sum = sdram[i+1];
+	    sum = sdram[i+2];
+	    sum = sdram[i+3];
+	    sum = sdram[i+4];
+	    sum = sdram[i+5];
+	    sum = sdram[i+6];
+	    sum = sdram[i+7];
+	}
+
+	end = DWT->CYCCNT;												//1710193354
+
+	GPIOB->BSRR = (GPIO_PIN_1 << 16);  								// Сбросить LED1_GREEN_Pin
+
+	float time_s_rd =	(float)(end-start)/480000000.0f;			//0.0477970317
+//	float mbps_rd = (TEST_WORDS*4.0f)/time_s_rd/1024.0f/1024.0f;	//83.6872025 скорость чтения MB/s при sum += sdram[i];
+//	float mbps_rd = (TEST_WORDS*4.0f)/time_s_rd/1024.0f/1024.0f;	//123.271637 скорость чтения MB/s при sum = sdram[i];...sum = sdram[i+7];
+	float mbps_rd = (TEST_WORDS*4.0f)/time_s_rd/1024.0f/1024.0f;	//168.331802 скорость чтения MB/s при __builtin_prefetch(&sdram[i+8], 0, 3); sum = sdram[i];...sum = sdram[i+7];
+
+	GPIOB->BSRR = (GPIO_PIN_1 << 16);  // Сбросить LED1_GREEN_Pin
+/*
 	start = DWT->CYCCNT;
 	for(uint32_t i=0;i<TEST_WORDS;i+=16)
 	{
@@ -484,8 +550,8 @@ void MPU_Config(void)
   MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
   MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
   MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
   // Enables the MPU
@@ -501,7 +567,6 @@ SCB_EnableDCache();
 поставьте IsBufferable = 0,
 IsCacheable = 0
 для того региона, куда DMA пишет. Иначе ядро будет читать кэшированные (устаревшие) данные.
-
 
 8. Функция тестирования памяти
 HAL_StatusTypeDef SDRAM_Test(void)
@@ -571,8 +636,8 @@ MPU TEX field level           level 1                   ✅ Normal Non-cacheable
 MPU Access Permission         ALL ACCESS PERMITTED      ✅
 MPU Instruction Access        DISABLE                   ✅
 MPU Shareability Permission   DISABLE                   ✅
-MPU Cacheable Permission      DISABLE                   ✅
-MPU Bufferable Permission     DISABLE                   ✅
+MPU Cacheable Permission      ENABLE                    ✅
+MPU Bufferable Permission     ENABLE                    ✅
 
 MPU Instruction Access = DISABLE означает что процессор не может выполнять код из SDRAM —
 это и есть XN бит (eXecute Never) в регионе MPU. Для SDRAM как области данных это правильно.
@@ -588,7 +653,7 @@ MPU SubRegion Disable = 0x0
 
 Расчёт для Шаг 3. Тайминги для SYSCLK = 480 МГц, To FMC = 240 МГц
 -----------------------------------------------------------------
-SDCLK = HCLK3 / 2 → 120 МГц; SDCLK = HCLK3 / 3 → 80 МГц
+SDCLK = HCLK3 / 2 → 120 МГц; (SDCLK = HCLK3 / 3 → 80 МГц)
 
 SYSCLK 480 МГц; HCLK3 (FMC) 240 МГц; SDCLK = HCLK3/2 120 МГц; Период tCK 8.333 нс
 
@@ -646,7 +711,9 @@ STM32H7 FMC имеет регистр RPIPE (задержка конвейера
 CL=2 оправдан только если вы принципиально хотите снизить латентность первого доступа. Разница
 составляет один такт SDCLK — при 120 МГц это **8.333 нс**. Для большинства задач такая разница не ощутима,
 а риски нестабильности при CL=2 на 120 МГц не стоят этого выигрыша.
+
 Итак:
+-----
 Тайминги FMC_SDTRx — регистровые значения
 CAS Latency = 3(Pinout & Configuration/FMC/SDRAM1/SDRAM timing in memory clock cycles)
 -------------------------------------------------------------------------------------------------------------
@@ -654,14 +721,8 @@ CAS Latency = 3(Pinout & Configuration/FMC/SDRAM1/SDRAM timing in memory clock c
 -------------------------------------------------------------------------------------------------------------
 TMRD Mode reg → Active	    2 CLK	           2 CLK (фикс.)	     2	         16.667 нс	     +0 нс
 TXSR Выход из self-refresh 72 нс	         ⌈72 / 8.333⌉ = ⌈8.640⌉	 9	         74.997 нс	     +2.997 нс
-// tRAS: время от Active до Precharge (минимальное 42 нс)
-//       ВНИМАНИЕ: поле SelfRefreshTime в STM32H7 задаёт НЕ tRAS!
-//       Согласно RM0433, SelfRefreshTime — это количество тактов, которое
-//       контроллер ждёт перед выдачей команды Self Refresh (обычно 4-5 тактов).
-//       Это поле не связано с tRAS. tRAS задаётся отдельно в Init.ACTtoPREdelay.
-//       Для SelfRefreshTime достаточно значения 4 (типовое).
-timing.SelfRefreshTime = 4;     // ✅ исправлено (было 6)
-TRAS Активное время строки 42 нс	         ⌈42 / 8.333⌉ = ⌈5.04⌉	 4	         42 нс	         +2 нс			!!! 4-5 тактов !!! Задержка для входа в режим Self Refresh (время, которое контроллер ждёт перед выдачей команды Self Refresh). Это не tRAS!
+timing.SelfRefreshTime = 6;
+TRAS Активное время строки 42 нс	         ⌈42 / 8.333⌉ = ⌈5.04⌉	 4	         42 нс	         +2 нс
 TRC Цикл строки	           60 нс	         ⌈60 / 8.333⌉ = ⌈7.20⌉	 8	         66.667 нс	     +0.667 нс
 TWR Восстановление записи   2 CLK	           3 CLK (фикс.)	     3	         25.000 нс	     +0 нс
 TRP Предзаряд строки	   18 нс	         ⌈18 / 8.333⌉ = ⌈2.160⌉	 3	         16.666 нс       +1.666 нс
@@ -713,7 +774,7 @@ timing.ExitSelfRefreshDelay = 9;   // TXSR: tXSR  = 72 нс → ⌈8.640⌉
 //       контроллер ждёт перед выдачей команды Self Refresh (обычно 4-5 тактов).
 //       Это поле не связано с tRAS. tRAS задаётся отдельно в Init.ACTtoPREdelay.
 //       Для SelfRefreshTime достаточно значения 4 (типовое).
-timing.SelfRefreshTime = 4;     // ✅ исправлено (было 6)
+timing.SelfRefreshTime = 6;
 timing.SelfRefreshTime      = 4;   // TRAS: tRAS  = 42 нс → ⌈5.040⌉   !!! 4-5 тактов !!! Задержка для входа в режим Self Refresh (время, которое контроллер ждёт перед выдачей команды Self Refresh). Это не tRAS!
 timing.RowCycleDelay        = 8;   // TRC:  tRC   = 60 нс → ⌈7.200⌉
 timing.WriteRecoveryTime    = 3;   // TWR:  tWR   = 3 CLK

@@ -458,7 +458,7 @@ float pid_integral = 0.0f;
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LED1_GREEN_Pin, GPIO_PIN_RESET);
 
-  HAL_TIM_Base_Start_IT(&htim17);
+//  HAL_TIM_Base_Start_IT(&htim17);
 
   /* USER CODE END 2 */
 
@@ -466,6 +466,11 @@ float pid_integral = 0.0f;
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+	  SDRAM_Performance();
+	  HAL_Delay(100); // Пауза 100 мс
+
+
 	  if(tick_led >= 500){
 		  tick_led=0;
 		  HAL_GPIO_TogglePin(LED0_RED_GPIO_Port, LED0_RED_Pin);
@@ -695,7 +700,19 @@ static void MX_FMC_Init(void)
 {
 
   /* USER CODE BEGIN FMC_Init 0 */
+/*
+ 	-----------Overclocking-----------
+	223.615799 MB/s write, 83.738533 MB/s reade
+	  SdramTiming.WriteRecoveryTime = 2;
+	  SdramTiming.RPDelay = 2;
+	  SdramTiming.RCDDelay = 2;
 
+	-----------Calculated-----------
+	221.622177 MB/s write, 83.6975708 MB/s reade
+	  SdramTiming.WriteRecoveryTime = 3;
+	  SdramTiming.RPDelay = 3;
+	  SdramTiming.RCDDelay = 3;
+*/
   /* USER CODE END FMC_Init 0 */
 
   FMC_SDRAM_TimingTypeDef SdramTiming = {0};
@@ -819,8 +836,8 @@ void MPU_Config(void)
   MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
   MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
   MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
-  //  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-  //  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+//  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+//  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
   /* Enables the MPU */
