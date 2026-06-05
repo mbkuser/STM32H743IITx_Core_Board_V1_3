@@ -468,7 +468,13 @@ float pid_integral = 0.0f;
   {
 
 	  SDRAM_Performance();
-	  HAL_Delay(100); // Пауза 100 мс
+
+	  //HAL_Delay(50); // Пауза 100 мс
+
+	  if (SDRAM_Test() != HAL_OK)
+	  {
+	      Error_Handler();  /* Мигаем светодиодом или встаём в бесконечный цикл */
+	  }
 
 
 	  if(tick_led >= 500){
@@ -750,7 +756,18 @@ static void MX_FMC_Init(void)
   }
 
   /* USER CODE BEGIN FMC_Init 2 */
+/*
+  // Включение пакетной записи (Write Burst)
+  hsdram1.Instance->SDCR[0] |= (1UL << 13);   // Установка бита WB (Write Burst)
 
+  if (hsdram1.Instance->SDCR[0] & (1UL << 13)) {
+      // Бит установлен — зажигаем LED1_GREEN
+      GPIOB->BSRR = (GPIO_PIN_1 << 16);
+  } else {
+      // Бит НЕ установлен — гасим LED1_GREEN (или зажигаем красный)
+      GPIOB->BSRR = GPIO_PIN_1;
+  }
+*/
   /* USER CODE END FMC_Init 2 */
 }
 

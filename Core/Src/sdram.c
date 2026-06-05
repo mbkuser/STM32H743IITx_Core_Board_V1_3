@@ -120,7 +120,7 @@ while (DWT->CYCCNT < cycles_200us);
            SDRAM_MODEREG_CAS_LATENCY_3             |
            SDRAM_MODEREG_OPERATING_MODE_STANDARD   |
            SDRAM_MODEREG_WRITEBURST_MODE_SINGLE;
-
+//    	   SDRAM_MODEREG_WRITEBURST_MODE_BURST;
     cmd.CommandMode            = FMC_SDRAM_CMD_LOAD_MODE;
     cmd.CommandTarget          = FMC_SDRAM_CMD_TARGET_BANK1;
     cmd.AutoRefreshNumber      = 1;
@@ -164,6 +164,7 @@ HAL_StatusTypeDef SDRAM_Test(void)
     volatile uint32_t *sdram = (volatile uint32_t *)SDRAM_BASE_ADDR;
     uint32_t size_words = SDRAM_SIZE / 4;  /* Количество 32-битных слов */
 
+    GPIOB->BSRR = (GPIO_PIN_1 << 16);  								// Сбросить LED1_GREEN_Pin
     /* --- Тест 1: Walking 1s (бегущая единица) --- */
     for (uint32_t i = 0; i < 32; i++)
     {
@@ -171,19 +172,25 @@ HAL_StatusTypeDef SDRAM_Test(void)
         SCB_CleanInvalidateDCache_by_Addr((uint32_t*)sdram, 4);
         if (sdram[0] != (1UL << i)) return HAL_ERROR;
     }
+    GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
 
+    GPIOB->BSRR = (GPIO_PIN_0 << 16);  								// Сбросить LED1_GREEN_Pin
     /* --- Тест 2: Паттерн 0xAAAA5555 — чередование бит --- */
     for (uint32_t i = 0; i < size_words; i++)
         sdram[i] = (i % 2 == 0) ? 0xAAAA5555UL : 0x5555AAAAUL;
 
     SCB_CleanInvalidateDCache();  /* Сбрасываем кэш перед верификацией */
+    GPIOB->BSRR = GPIO_PIN_0;           							// Установить LED1_GREEN_Pin
 
+    GPIOB->BSRR = (GPIO_PIN_1 << 16);  								// Сбросить LED1_GREEN_Pin
     for (uint32_t i = 0; i < size_words; i++)
     {
         uint32_t expected = (i % 2 == 0) ? 0xAAAA5555UL : 0x5555AAAAUL;
         if (sdram[i] != expected) return HAL_ERROR;
     }
+    GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
 
+    GPIOB->BSRR = (GPIO_PIN_0 << 16);  								// Сбросить LED1_GREEN_Pin
     /* --- Тест 3: Адресный тест — значение = адрес --- */
     for (uint32_t i = 0; i < size_words; i++)
         sdram[i] = i;
@@ -196,7 +203,9 @@ HAL_StatusTypeDef SDRAM_Test(void)
     {
         if (sdram[i] != i) return HAL_ERROR;
     }
+    GPIOB->BSRR = GPIO_PIN_0;           							// Установить LED1_GREEN_Pin
 
+    GPIOB->BSRR = (GPIO_PIN_1 << 16);  								// Сбросить LED1_GREEN_Pin
     /* --- Тест 4: Паттерн 0x00000000 --- */
     for(uint32_t i=0;i<size_words;i++)
         sdram[i]=0x00000000UL;
@@ -208,7 +217,9 @@ HAL_StatusTypeDef SDRAM_Test(void)
     {
         if (sdram[i] != 0x00000000UL) return HAL_ERROR;
     }
+    GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
 
+    GPIOB->BSRR = (GPIO_PIN_0 << 16);  								// Сбросить LED1_GREEN_Pin
     /* --- Тест 5: Паттерн 0xFFFFFFFF --- */
     for(uint32_t i=0;i<size_words;i++)
         sdram[i]=0xFFFFFFFFUL;
@@ -220,7 +231,9 @@ HAL_StatusTypeDef SDRAM_Test(void)
     {
         if (sdram[i] != 0xFFFFFFFFUL) return HAL_ERROR;
     }
+    GPIOB->BSRR = GPIO_PIN_0;           							// Установить LED1_GREEN_Pin
 
+    GPIOB->BSRR = (GPIO_PIN_1 << 16);  								// Сбросить LED1_GREEN_Pin
     /* --- Тест 6: Паттерн 0x5A5A5A5A --- */
     for(uint32_t i=0;i<size_words;i++)
         sdram[i]=0x5A5A5A5AUL;
@@ -232,7 +245,9 @@ HAL_StatusTypeDef SDRAM_Test(void)
     {
         if (sdram[i] != 0x5A5A5A5AUL) return HAL_ERROR;
     }
+    GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
 
+    GPIOB->BSRR = (GPIO_PIN_0 << 16);  								// Сбросить LED1_GREEN_Pin
     /* --- Тест 7: Паттерн 0xA5A5A5A5 --- */
     for(uint32_t i=0;i<size_words;i++)
         sdram[i]=0xA5A5A5A5UL;
@@ -244,6 +259,7 @@ HAL_StatusTypeDef SDRAM_Test(void)
     {
         if (sdram[i] != 0xA5A5A5A5UL) return HAL_ERROR;
     }
+    GPIOB->BSRR = GPIO_PIN_0;           							// Установить LED1_GREEN_Pin
 
     return HAL_OK;
 }
@@ -254,6 +270,8 @@ void SDRAM_Performance(void)
 	uint32_t start,end;
 
 	GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
+
+//	HAL_Delay(50); // Пауза 10 мс
 
 	start = DWT->CYCCNT;											//3201187715
 
@@ -294,13 +312,15 @@ void SDRAM_Performance(void)
 */
 	GPIOB->BSRR = (GPIO_PIN_1 << 16);  // Сбросить пин
 
-	HAL_Delay(10); // Пауза 10 мс
+//	HAL_Delay(50); // Пауза 10 мс
 
 	//---------------------------------------------------
 	//Измерить скорость чтения #define TEST_WORDS (1024*1024)
 	volatile uint32_t sum=0;
 
-	GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
+	GPIOB->BSRR = GPIO_PIN_0;           							// Установить LED0_RED_Pin
+
+//	HAL_Delay(50); // Пауза 10 мс
 
 	start = DWT->CYCCNT;											//1687250779
 
@@ -324,14 +344,17 @@ void SDRAM_Performance(void)
 
 	end = DWT->CYCCNT;												//1710193354
 
-	GPIOB->BSRR = (GPIO_PIN_1 << 16);  								// Сбросить LED1_GREEN_Pin
+	GPIOB->BSRR = (GPIO_PIN_0 << 16);  								// Сбросить LED0_RED_Pin
 
 	float time_s_rd =	(float)(end-start)/480000000.0f;			//0.0477970317
 //	float mbps_rd = (TEST_WORDS*4.0f)/time_s_rd/1024.0f/1024.0f;	//83.6872025 скорость чтения MB/s при sum += sdram[i];
 //	float mbps_rd = (TEST_WORDS*4.0f)/time_s_rd/1024.0f/1024.0f;	//123.271637 скорость чтения MB/s при sum = sdram[i];...sum = sdram[i+7];
 	float mbps_rd = (TEST_WORDS*4.0f)/time_s_rd/1024.0f/1024.0f;	//168.331802 скорость чтения MB/s при __builtin_prefetch(&sdram[i+8], 0, 3); sum = sdram[i];...sum = sdram[i+7];
 
-	GPIOB->BSRR = (GPIO_PIN_1 << 16);  // Сбросить LED1_GREEN_Pin
+	GPIOB->BSRR = (GPIO_PIN_0 << 16);  // Сбросить LED1_GREEN_Pin
+
+//	HAL_Delay(50); // Пауза 10 мс
+
 /*
 	start = DWT->CYCCNT;
 	for(uint32_t i=0;i<TEST_WORDS;i+=16)

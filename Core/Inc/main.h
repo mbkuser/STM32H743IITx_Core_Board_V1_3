@@ -31,6 +31,8 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#define FMC_SDCR1_WB_Pos (13U)
+#define FMC_SDCR1_WB_Msk (1U << FMC_SDCR1_WB_Pos)
 
 /* USER CODE END Includes */
 
