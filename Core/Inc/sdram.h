@@ -34,6 +34,7 @@
 
 HAL_StatusTypeDef SDRAM_Init(SDRAM_HandleTypeDef *hsdram);
 HAL_StatusTypeDef SDRAM_Test(void);
+HAL_StatusTypeDef SDRAM_Test_old(void);
 
 void SDRAM_Performance(void);
 
