@@ -167,8 +167,23 @@ HAL_StatusTypeDef SDRAM_Test(void)
     HAL_StatusTypeDef status = HAL_OK;
 
     // Вспомогательный макрос: сброс и чистка кэша для всей SDRAM
-    #define CLEAN_SDRAM_CACHE()  SCB_CleanInvalidateDCache_by_Addr((uint32_t*)SDRAM_BASE_ADDR, SDRAM_SIZE)
+    //#define CLEAN_SDRAM_CACHE()  SCB_CleanInvalidateDCache_by_Addr((uint32_t*)SDRAM_BASE_ADDR, SDRAM_SIZE); __DSB(); __ISB()
 
+/*
+Почему сам набор операций правильный
+SCB_CleanInvalidateDCache_by_Addr(...) — выталкивает грязные строки кэша для всей области SDRAM в физическую память 
+и затем инвалидирует их. После этого ядро будет вынуждено загружать данные из SDRAM при следующем чтении.
+__DSB() — гарантирует, что все предыдущие операции (включая обслуживание кэша) полностью завершены.
+__ISB() — сбрасывает конвейер, чтобы следующая инструкция точно выполнялась с учётом новой когерентности памяти.
+Таким образом, макрос делает именно то, что требуется: полностью синхронизирует состояние SDRAM между кэшем и физической памятью.
+*/
+	
+#define CLEAN_SDRAM_CACHE()  do { \
+    SCB_CleanInvalidateDCache_by_Addr((uint32_t*)(SDRAM_BASE_ADDR), (SDRAM_SIZE)); \
+    __DSB(); \
+    __ISB(); \
+} while(0)
+	
     // --- Тест 1: Walking 1s по нескольким адресам ---
     const uint32_t test_addrs[] = {0, size_words/4, size_words/2, size_words-1};
     for (int a = 0; a < 4; a++) {
