@@ -19,7 +19,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "usb_device.h"
-
+#include <stdio.h>
+#include "usbd_cdc_if.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "sdram.h"
@@ -450,15 +451,17 @@ float pid_integral = 0.0f;
 //  fill_screen(0xABCD);
 //  fill_screen(0x1234);
 
-  if (SDRAM_Test() != HAL_OK)
-  {
-      Error_Handler();  /* Мигаем светодиодом или встаём в бесконечный цикл */
-  }
+//  if (SDRAM_Test() != HAL_OK)
+//  {
+//      Error_Handler();  /* Мигаем светодиодом или встаём в бесконечный цикл */
+//  }
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, LED1_GREEN_Pin, GPIO_PIN_RESET);
 
 //  HAL_TIM_Base_Start_IT(&htim17);
+
+//  printf("STM32H743 USB CDC Ready!\n");
 
   /* USER CODE END 2 */
 
@@ -470,11 +473,11 @@ float pid_integral = 0.0f;
 	  SDRAM_Performance();
 
 	  //HAL_Delay(50); // Пауза 100 мс
-//
-//	  if (SDRAM_Test() != HAL_OK)
-//	  {
-//	      Error_Handler();  /* Мигаем светодиодом или встаём в бесконечный цикл */
-//	  }
+
+	  if (SDRAM_Test() != HAL_OK)
+	  {
+	      Error_Handler();  /* Мигаем светодиодом или встаём в бесконечный цикл */
+	  }
 
 
 	  if(tick_led >= 500){
@@ -746,9 +749,9 @@ static void MX_FMC_Init(void)
   SdramTiming.ExitSelfRefreshDelay = 9;
   SdramTiming.SelfRefreshTime = 6;
   SdramTiming.RowCycleDelay = 8;
-  SdramTiming.WriteRecoveryTime = 3;
-  SdramTiming.RPDelay = 3;
-  SdramTiming.RCDDelay = 3;
+  SdramTiming.WriteRecoveryTime = 2;
+  SdramTiming.RPDelay = 2;
+  SdramTiming.RCDDelay = 2;
 
   if (HAL_SDRAM_Init(&hsdram1, &SdramTiming) != HAL_OK)
   {
@@ -828,7 +831,17 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+int _write(int file, char *ptr, int len)
+{
+  static uint8_t rc = USBD_OK;
+  do {
+    rc = CDC_Transmit_FS((uint8_t*) ptr, len);
+  } while (USBD_BUSY == rc);
+  if (USBD_FAIL == rc) {
+    return 0;
+  }
+  return len;
+}
 /* USER CODE END 4 */
 
  /* MPU Configuration */
@@ -848,6 +861,7 @@ void MPU_Config(void)
   MPU_InitStruct.Size = MPU_REGION_SIZE_32MB;
   MPU_InitStruct.SubRegionDisable = 0x0;
   MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+//  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
   MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
   MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
   MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
@@ -873,9 +887,9 @@ void Error_Handler(void)
   __disable_irq();
   while (1)
   {
-	  HAL_GPIO_TogglePin(LED0_RED_GPIO_Port, LED0_RED_Pin);
+//	  HAL_GPIO_TogglePin(LED0_RED_GPIO_Port, LED0_RED_Pin);
 //	  HAL_GPIO_TogglePin(LED1_GREEN_GPIO_Port, LED1_GREEN_Pin);
-	  HAL_Delay(500); // Пауза 500 мс
+//	  HAL_Delay(150); // Пауза 500 мс
   }
   /* USER CODE END Error_Handler_Debug */
 }

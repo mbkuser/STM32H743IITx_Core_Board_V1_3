@@ -8,12 +8,15 @@
 #include "sdram.h"
 #include <string.h>
 #include "main.h"
+#include <stdio.h>
 
 
 uint32_t * const sdram = (uint32_t *)0xC0000000;
 
 uint32_t *src = (uint32_t*)0xC0000000;
 uint32_t *dst = (uint32_t*)0xC0400000;
+
+//__attribute__((section(".sdram"), aligned(8))) uint32_t my_buffer[1024];
 
 /**
  * @brief  Полная инициализационная последовательность SDRAM
@@ -115,16 +118,16 @@ while (DWT->CYCCNT < cycles_200us);
          - CAS Latency = 3 (безопаснее при 100+ МГц)
          - Write Burst = Single (запись без burst)
     --------------------------------------------------------------- */
-    tmpr = SDRAM_MODEREG_BURST_LENGTH_8            |
+    tmpr = SDRAM_MODEREG_BURST_LENGTH_1            |
            SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL     |
            SDRAM_MODEREG_CAS_LATENCY_3             |
-           SDRAM_MODEREG_OPERATING_MODE_STANDARD   |
+//           SDRAM_MODEREG_OPERATING_MODE_STANDARD   |
            SDRAM_MODEREG_WRITEBURST_MODE_SINGLE;
 //    	   SDRAM_MODEREG_WRITEBURST_MODE_BURST;
     cmd.CommandMode            = FMC_SDRAM_CMD_LOAD_MODE;
     cmd.CommandTarget          = FMC_SDRAM_CMD_TARGET_BANK1;
     cmd.AutoRefreshNumber      = 1;
-    cmd.ModeRegisterDefinition = tmpr;
+    cmd.ModeRegisterDefinition = tmpr; //0x33?
 
     if (HAL_SDRAM_SendCommand(hsdram, &cmd, SDRAM_TIMEOUT) != HAL_OK)
         return HAL_ERROR;
@@ -155,16 +158,11 @@ while (DWT->CYCCNT < cycles_200us);
     return HAL_OK;
 }
 
-#define SDRAM_TEST_PATTERN1  0xAAAA5555UL
-#define SDRAM_TEST_PATTERN2  0x5555AAAAUL
-#define SDRAM_TEST_PATTERN3  0x5A5A5A5AUL
-#define SDRAM_TEST_PATTERN4  0xA5A5A5A5UL
-
 HAL_StatusTypeDef SDRAM_Test(void)
 {
-    uint32_t *sdram = (uint32_t *)SDRAM_BASE_ADDR;  // без volatile
+	uint32_t *sdram = (uint32_t *)SDRAM_BASE_ADDR;  // без volatile
     uint32_t size_words = SDRAM_SIZE / 4;
-    HAL_StatusTypeDef status = HAL_OK;
+    //HAL_StatusTypeDef status = HAL_OK;
 
     // Вспомогательный макрос: сброс и чистка кэша для всей SDRAM
     //#define CLEAN_SDRAM_CACHE()  SCB_CleanInvalidateDCache_by_Addr((uint32_t*)SDRAM_BASE_ADDR, SDRAM_SIZE); __DSB(); __ISB()
@@ -178,12 +176,8 @@ __ISB() — сбрасывает конвейер, чтобы следующая
 Таким образом, макрос делает именно то, что требуется: полностью синхронизирует состояние SDRAM между кэшем и физической памятью.
 */
 	
-#define CLEAN_SDRAM_CACHE()  do { \
-    SCB_CleanInvalidateDCache_by_Addr((uint32_t*)(SDRAM_BASE_ADDR), (SDRAM_SIZE)); \
-    __DSB(); \
-    __ISB(); \
-} while(0)
-	
+    GPIOB->BSRR = (GPIO_PIN_1 << 16);  								// Сбросить LED1_GREEN_Pin
+
     // --- Тест 1: Walking 1s по нескольким адресам ---
     const uint32_t test_addrs[] = {0, size_words/4, size_words/2, size_words-1};
     for (int a = 0; a < 4; a++) {
@@ -194,6 +188,9 @@ __ISB() — сбрасывает конвейер, чтобы следующая
         }
     }
 
+    GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
+	printf("Тест 1: Ok\r\n");
+
     // --- Тест 2: Walking 0s по тем же адресам ---
     for (int a = 0; a < 4; a++) {
         for (uint32_t bit = 0; bit < 32; bit++) {
@@ -202,6 +199,9 @@ __ISB() — сбрасывает конвейер, чтобы следующая
             if (sdram[test_addrs[a]] != ~(1UL << bit)) return HAL_ERROR;
         }
     }
+
+	printf("Тест 2: Ok\r\n");
+    GPIOB->BSRR = (GPIO_PIN_1 << 16);  								// Сбросить LED1_GREEN_Pin
 
     // --- Тест 3: Шахматные паттерны по всей памяти ---
     for (uint32_t i = 0; i < size_words; i++) {
@@ -213,6 +213,9 @@ __ISB() — сбрасывает конвейер, чтобы следующая
         if (sdram[i] != expected) return HAL_ERROR;
     }
 
+	printf("Тест 3: Ok\r\n");
+    GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
+
     // --- Тест 4: Адресный тест (значение = адрес) ---
     for (uint32_t i = 0; i < size_words; i++) {
         sdram[i] = i;
@@ -221,6 +224,9 @@ __ISB() — сбрасывает конвейер, чтобы следующая
     for (uint32_t i = 0; i < size_words; i++) {
         if (sdram[i] != i) return HAL_ERROR;
     }
+
+	printf("Тест 4: Ok\r\n");
+    GPIOB->BSRR = (GPIO_PIN_1 << 16);  								// Сбросить LED1_GREEN_Pin
 
     // --- Тест 5: Псевдослучайная последовательность (LFSR) ---
     uint32_t lfsr = 0xACE1u;  // начальное состояние
@@ -236,14 +242,17 @@ __ISB() — сбрасывает конвейер, чтобы следующая
         if (sdram[i] != expected) return HAL_ERROR;
     }
 
+	printf("Тест 5: Ok\r\n");
+    GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
+
     // --- Тест 6: Быстрая проверка границ банков/строк ---
     // (зависит от параметров чипа: 4 банка, 8192 строки, 512 столбцов для 16-bit)
     // Записываем в начало каждой строки её индекс
-    const uint32_t row_size = 512; // в 16-битных словах, для W9825G6KH
+    const uint32_t row_size = 256; // 256 32-битных слов в строке, для W9825G6KH-6I
     for (uint32_t bank = 0; bank < 4; bank++) {
         for (uint32_t row = 0; row < 8192; row++) {
             uint32_t addr = (bank * 8192 + row) * row_size;
-            sdram[addr] = (bank << 16) | row;
+            sdram[addr] = (bank << 16) | row;	// полное 32-битное значение
         }
     }
     CLEAN_SDRAM_CACHE();
@@ -254,6 +263,9 @@ __ISB() — сбрасывает конвейер, чтобы следующая
         }
     }
 
+	printf("Тест 6: Ok\r\n");
+    GPIOB->BSRR = (GPIO_PIN_1 << 16);  								// Сбросить LED1_GREEN_Pin
+
     // --- Тест 7: Паттерны 0x00 и 0xFF можно объединить с небольшим дополнением ---
     // Уже покрыто Walking 0s/1s, но для полной уверенности можно быстро прогнать:
     memset(sdram, 0x00, SDRAM_SIZE);
@@ -263,6 +275,9 @@ __ISB() — сбрасывает конвейер, чтобы следующая
     memset(sdram, 0xFF, SDRAM_SIZE);
     CLEAN_SDRAM_CACHE();
     for (uint32_t i = 0; i < size_words; i++) if (sdram[i] != 0xFFFFFFFF) return HAL_ERROR;
+
+	printf("Тест 7: Ok\r\n");
+    GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
 
     // --- Тест 8: Задержка и проверка удержания (Data Retention) ---
     // Записать известный паттерн, подождать, проверить
@@ -275,8 +290,14 @@ __ISB() — сбрасывает конвейер, чтобы следующая
         if (sdram[i] != SDRAM_TEST_PATTERN3) return HAL_ERROR;
     }
 
+	printf("Тест 8: Ok\r\n");
+    GPIOB->BSRR = (GPIO_PIN_1 << 16);  								// Сбросить LED1_GREEN_Pin
+//    GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
+
     return HAL_OK;
 }
+
+
 
 /**
  * @brief  Тест SDRAM: запись-чтение паттернов
@@ -296,6 +317,8 @@ HAL_StatusTypeDef SDRAM_Test_old(void)
         if (sdram[0] != (1UL << i)) return HAL_ERROR;
     }
     GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
+	printf("Тест 1: Ok\r\n");
+
 
     GPIOB->BSRR = (GPIO_PIN_0 << 16);  								// Сбросить LED1_GREEN_Pin
     /* --- Тест 2: Паттерн 0xAAAA5555 — чередование бит --- */
@@ -312,6 +335,7 @@ HAL_StatusTypeDef SDRAM_Test_old(void)
         if (sdram[i] != expected) return HAL_ERROR;
     }
     GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
+	printf("Тест 2: Ok\r\n");
 
     GPIOB->BSRR = (GPIO_PIN_0 << 16);  								// Сбросить LED1_GREEN_Pin
     /* --- Тест 3: Адресный тест — значение = адрес --- */
@@ -327,6 +351,7 @@ HAL_StatusTypeDef SDRAM_Test_old(void)
         if (sdram[i] != i) return HAL_ERROR;
     }
     GPIOB->BSRR = GPIO_PIN_0;           							// Установить LED1_GREEN_Pin
+	printf("Тест 3: Ok\r\n");
 
     GPIOB->BSRR = (GPIO_PIN_1 << 16);  								// Сбросить LED1_GREEN_Pin
     /* --- Тест 4: Паттерн 0x00000000 --- */
@@ -341,6 +366,7 @@ HAL_StatusTypeDef SDRAM_Test_old(void)
         if (sdram[i] != 0x00000000UL) return HAL_ERROR;
     }
     GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
+	printf("Тест 4: Ok\r\n");
 
     GPIOB->BSRR = (GPIO_PIN_0 << 16);  								// Сбросить LED1_GREEN_Pin
     /* --- Тест 5: Паттерн 0xFFFFFFFF --- */
@@ -355,6 +381,7 @@ HAL_StatusTypeDef SDRAM_Test_old(void)
         if (sdram[i] != 0xFFFFFFFFUL) return HAL_ERROR;
     }
     GPIOB->BSRR = GPIO_PIN_0;           							// Установить LED1_GREEN_Pin
+	printf("Тест 5: Ok\r\n");
 
     GPIOB->BSRR = (GPIO_PIN_1 << 16);  								// Сбросить LED1_GREEN_Pin
     /* --- Тест 6: Паттерн 0x5A5A5A5A --- */
@@ -369,6 +396,7 @@ HAL_StatusTypeDef SDRAM_Test_old(void)
         if (sdram[i] != 0x5A5A5A5AUL) return HAL_ERROR;
     }
     GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
+	printf("Тест 1: Ok\r\n");
 
     GPIOB->BSRR = (GPIO_PIN_0 << 16);  								// Сбросить LED1_GREEN_Pin
     /* --- Тест 7: Паттерн 0xA5A5A5A5 --- */
@@ -383,6 +411,7 @@ HAL_StatusTypeDef SDRAM_Test_old(void)
         if (sdram[i] != 0xA5A5A5A5UL) return HAL_ERROR;
     }
     GPIOB->BSRR = GPIO_PIN_0;           							// Установить LED1_GREEN_Pin
+	printf("Тест 7: Ok\r\n");
 
     return HAL_OK;
 }
@@ -392,11 +421,11 @@ void SDRAM_Performance(void)
 	// Измерить скорость записи #define TEST_WORDS (1024*1024)
 	uint32_t start,end;
 
-	GPIOB->BSRR = GPIO_PIN_1;           							// Установить LED1_GREEN_Pin
+	GPIOB->BSRR = GPIO_PIN_1;           							//Установить LED1_GREEN_Pin
 
 //	HAL_Delay(50); // Пауза 10 мс
 
-	start = DWT->CYCCNT;											//3201187715
+	start = DWT->CYCCNT;											//2395767865
 
 	for (uint32_t i = 0; i < TEST_WORDS; i += 8) {
 	    sdram[i]   = i;
@@ -407,17 +436,17 @@ void SDRAM_Performance(void)
 	    sdram[i+5] = i+5;
 	    sdram[i+6] = i+6;
 	    sdram[i+7] = i+7;
-	}																//mbps_wr=221.425674 - почти равно 240 МБ/с т.е. максимуму
+	}																//mbps_wr=221.615295 - почти равно 240 МБ/с т.е. максимуму
 
 //	__builtin_memset(sdram, 0, TEST_WORDS * 4);						//mbps_wr=152.19751
 
-	__DSB();   														// Data Synchronization Barrier
+	__DSB();   														//Data Synchronization Barrier
 
-	end = DWT->CYCCNT;												//3209858796
+	end = DWT->CYCCNT;												//2404431689
 
-	GPIOB->BSRR = (GPIO_PIN_1 << 16);  								// Сбросить LED1_GREEN_Pin
+	GPIOB->BSRR = (GPIO_PIN_1 << 16);  								//Сбросить LED1_GREEN_Pin
 
-	float time_s_wr =	(float)(end-start)/480000000.0f;			//0.0180647522
+	float time_s_wr =	(float)(end-start)/480000000.0f;			//0.0180496331
 /*
 	float mbps_wr = (TEST_WORDS*4.0f)/time_s_wr/1024.0f/1024.0f;	//223.615799 скорость записи MB/s
 
@@ -426,14 +455,20 @@ void SDRAM_Performance(void)
 	  SdramTiming.RPDelay = 2;
 	  SdramTiming.RCDDelay = 2;
 */
-	float mbps_wr = (TEST_WORDS*4.0f)/time_s_wr/1024.0f/1024.0f;	//221.425674 скорость записи MB/s
+	float mbps_wr = (TEST_WORDS*4.0f)/time_s_wr/1024.0f/1024.0f;	//221.615295 скорость записи MB/s
+
+	//printf("WR=%d\r\n", (int)mbps_wr);
+//	  printf("STM32H743 USB CDC Ready!\r\n");
+//	  printf("WR=%d\r\n", (int)mbps_wr);
+//	  HAL_Delay(1000);
+
 /*
 	221.622177 MB/s write, 83.6975708 MB/s reade
 	  SdramTiming.WriteRecoveryTime = 3;
 	  SdramTiming.RPDelay = 3;
 	  SdramTiming.RCDDelay = 3;
 */
-	GPIOB->BSRR = (GPIO_PIN_1 << 16);  // Сбросить пин
+	GPIOB->BSRR = (GPIO_PIN_1 << 16);  								//Сбросить пин LED1_GREEN_Pin
 
 //	HAL_Delay(50); // Пауза 10 мс
 
@@ -441,11 +476,11 @@ void SDRAM_Performance(void)
 	//Измерить скорость чтения #define TEST_WORDS (1024*1024)
 	volatile uint32_t sum=0;
 
-	GPIOB->BSRR = GPIO_PIN_0;           							// Установить LED0_RED_Pin
+	GPIOB->BSRR = GPIO_PIN_0;           							//Установить LED0_RED_Pin
 
 //	HAL_Delay(50); // Пауза 10 мс
 
-	start = DWT->CYCCNT;											//1687250779
+	start = DWT->CYCCNT;											//2384359828
 
 //	for(uint32_t i=0;i<TEST_WORDS;i++)
 //	{
@@ -455,6 +490,7 @@ void SDRAM_Performance(void)
 	for(uint32_t i=0; i < TEST_WORDS; i += 8)
 	{
 	    __builtin_prefetch(&sdram[i+8], 0, 3);
+/*
 	    sum = sdram[i];
 	    sum = sdram[i+1];
 	    sum = sdram[i+2];
@@ -463,16 +499,61 @@ void SDRAM_Performance(void)
 	    sum = sdram[i+5];
 	    sum = sdram[i+6];
 	    sum = sdram[i+7];
+*/
+	    sum += sdram[i] + sdram[i+1] + sdram[i+2] + sdram[i+3] + sdram[i+4] + sdram[i+5] + sdram[i+6] + sdram[i+7]; //так 168.323883 МБ/с
 	}
+/*
+	for(uint32_t i=0; i < TEST_WORDS; i += 16) //так стало 140 МБ/с
+	{
+	    __builtin_prefetch(&sdram[i+16], 0, 3);
+	    sum = sdram[i];
+	    sum = sdram[i+1];
+	    sum = sdram[i+2];
+	    sum = sdram[i+3];
+	    sum = sdram[i+4];
+	    sum = sdram[i+5];
+	    sum = sdram[i+6];
+	    sum = sdram[i+7];
+	    sum = sdram[i+8];
+	    sum = sdram[i+9];
+	    sum = sdram[i+10];
+	    sum = sdram[i+11];
+	    sum = sdram[i+12];
+	    sum = sdram[i+13];
+	    sum = sdram[i+14];
+	    sum = sdram[i+15];
+	}
+*/
+	end = DWT->CYCCNT;												//2395767661
 
-	end = DWT->CYCCNT;												//1710193354
+	//GPIOB->BSRR = (GPIO_PIN_0 << 16);  								//Сбросить LED0_RED_Pin
 
-	GPIOB->BSRR = (GPIO_PIN_0 << 16);  								// Сбросить LED0_RED_Pin
-
-	float time_s_rd =	(float)(end-start)/480000000.0f;			//0.0477970317
+	float time_s_rd =	(float)(end-start)/480000000.0f;			//0.0237663183
 //	float mbps_rd = (TEST_WORDS*4.0f)/time_s_rd/1024.0f/1024.0f;	//83.6872025 скорость чтения MB/s при sum += sdram[i];
 //	float mbps_rd = (TEST_WORDS*4.0f)/time_s_rd/1024.0f/1024.0f;	//123.271637 скорость чтения MB/s при sum = sdram[i];...sum = sdram[i+7];
-	float mbps_rd = (TEST_WORDS*4.0f)/time_s_rd/1024.0f/1024.0f;	//168.331802 скорость чтения MB/s при __builtin_prefetch(&sdram[i+8], 0, 3); sum = sdram[i];...sum = sdram[i+7];
+	float mbps_rd = (TEST_WORDS*4.0f)/time_s_rd/1024.0f/1024.0f;	//168.305405 скорость чтения MB/s при __builtin_prefetch(&sdram[i+8], 0, 3); sum = sdram[i];...sum = sdram[i+7];
+
+	//printf("RD=%l\f\n", mbps_rd);
+//	  printf("WR=%d , RD=%d \r\n", (int)mbps_wr, (int)mbps_rd);
+	  //	  printf("WR=%d\r\n", (int)mbps_wr);
+
+
+//	  float f = 123.4567f;
+	  float f = mbps_wr;
+
+	  int integer_part = (int)f;
+	  int fractional_part = (int)((f - integer_part) * 1000); // 3 знака
+	  printf("WR = %d.%03d MB/s\r\n", integer_part, fractional_part);
+
+	  f = mbps_rd;
+
+	  integer_part = (int)f;
+	  fractional_part = (int)((f - integer_part) * 1000); // 3 знака
+	  printf("RD = %d.%03d MB/s\r\n", integer_part, fractional_part);
+	  printf("\r\n");
+
+
+	  HAL_Delay(1000);
 
 	GPIOB->BSRR = (GPIO_PIN_0 << 16);  // Сбросить LED1_GREEN_Pin
 

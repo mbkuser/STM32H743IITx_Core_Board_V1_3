@@ -19,18 +19,28 @@
 
 #define TEST_WORDS (1024*1024)
 
-/* Регистр режима SDRAM (Mode Register) */
-#define SDRAM_MODEREG_BURST_LENGTH_1          0x0000U	//BL = 1
-#define SDRAM_MODEREG_BURST_LENGTH_2          0x0001U	//BL = 2
-#define SDRAM_MODEREG_BURST_LENGTH_4          0x0002U	//BL = 4
-//#define SDRAM_MODEREG_BURST_LENGTH_8          0x0004U	//BL = 8 ???
-#define SDRAM_MODEREG_BURST_LENGTH_8          0x0003U	//BL = 8
-#define SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL   0x0000U
-#define SDRAM_MODEREG_CAS_LATENCY_2           0x0020U
-#define SDRAM_MODEREG_CAS_LATENCY_3           0x0030U
-#define SDRAM_MODEREG_OPERATING_MODE_STANDARD 0x0000U
-#define SDRAM_MODEREG_WRITEBURST_MODE_SINGLE  0x0200U	//Одиночная запись
-#define SDRAM_MODEREG_WRITEBURST_MODE_BURST   0x0000U	//Пакетная запись ???
+#define CLEAN_SDRAM_CACHE()  do { \
+    SCB_CleanInvalidateDCache_by_Addr((uint32_t*)(SDRAM_BASE_ADDR), (SDRAM_SIZE)); \
+    __DSB(); \
+    __ISB(); \
+} while(0)
+
+#define SDRAM_TEST_PATTERN1  0xAAAA5555UL
+#define SDRAM_TEST_PATTERN2  0x5555AAAAUL
+#define SDRAM_TEST_PATTERN3  0x5A5A5A5AUL
+#define SDRAM_TEST_PATTERN4  0xA5A5A5A5UL
+
+/* Регистр режима SDRAM (Mode Register) page 20 datasheet W9825G6KH.pdf*/
+#define SDRAM_MODEREG_BURST_LENGTH_1          0x0000U	//[A2 A1 A0]-Burst Length BL = 1(Sequential/Interleave)
+#define SDRAM_MODEREG_BURST_LENGTH_2          0x0001U	//[A2 A1 A0]-Burst Length BL = 2(Sequential/Interleave)
+#define SDRAM_MODEREG_BURST_LENGTH_4          0x0002U	//[A2 A1 A0]-Burst Length BL = 4(Sequential/Interleave)
+#define SDRAM_MODEREG_BURST_LENGTH_8          0x0003U	//[A2 A1 A0]-Burst Length BL = 8(Sequential/Interleave)
+#define SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL   0x0000U	//A3-Addressing Mode 0: Sequential; 1: Interleave
+#define SDRAM_MODEREG_CAS_LATENCY_2           0x0020U	//[A6 A5 A4]-CAS Latency 2
+#define SDRAM_MODEREG_CAS_LATENCY_3           0x0030U	//[A6 A5 A4]-CAS Latency 3
+//#define SDRAM_MODEREG_OPERATING_MODE_STANDARD 0x0000U
+#define SDRAM_MODEREG_WRITEBURST_MODE_SINGLE  0x0200U	//Одиночная запись A9-Write Mode(Single Write Mode) 1: Burst read and single write
+#define SDRAM_MODEREG_WRITEBURST_MODE_BURST   0x0000U	//Пакетная запись  A9-Write Mode(Single Write Mode) 0: Burst read and Burst write
 
 HAL_StatusTypeDef SDRAM_Init(SDRAM_HandleTypeDef *hsdram);
 HAL_StatusTypeDef SDRAM_Test(void);
