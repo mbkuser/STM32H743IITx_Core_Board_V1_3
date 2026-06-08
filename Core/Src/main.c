@@ -470,11 +470,11 @@ float pid_integral = 0.0f;
 	  SDRAM_Performance();
 
 	  //HAL_Delay(50); // Пауза 100 мс
-
-	  if (SDRAM_Test() != HAL_OK)
-	  {
-	      Error_Handler();  /* Мигаем светодиодом или встаём в бесконечный цикл */
-	  }
+//
+//	  if (SDRAM_Test() != HAL_OK)
+//	  {
+//	      Error_Handler();  /* Мигаем светодиодом или встаём в бесконечный цикл */
+//	  }
 
 
 	  if(tick_led >= 500){

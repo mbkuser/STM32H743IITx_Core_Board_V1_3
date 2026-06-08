@@ -115,7 +115,7 @@ while (DWT->CYCCNT < cycles_200us);
          - CAS Latency = 3 (безопаснее при 100+ МГц)
          - Write Burst = Single (запись без burst)
     --------------------------------------------------------------- */
-    tmpr = SDRAM_MODEREG_BURST_LENGTH_1            |
+    tmpr = SDRAM_MODEREG_BURST_LENGTH_8            |
            SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL     |
            SDRAM_MODEREG_CAS_LATENCY_3             |
            SDRAM_MODEREG_OPERATING_MODE_STANDARD   |
