@@ -205,11 +205,8 @@ __ISB() — сбрасывает конвейер, чтобы следующая
         }
     }
     GPIOB->BSRR = GPIO_PIN_1;           							// Off LED1_GREEN
-	printf("\b : Ok\r\n");
-
-    return HAL_OK;
-
-
+//	printf("\b : Ok\r\n");
+    printf(" : Ok\r\n");
 
 	printf("Тест 2: Start");
     GPIOB->BSRR = (GPIO_PIN_0 << 16);  								// On LED0_RED
