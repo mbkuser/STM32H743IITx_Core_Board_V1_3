@@ -457,9 +457,13 @@ float pid_integral = 0.0f;
 //  }
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, LED1_GREEN_Pin, GPIO_PIN_RESET);
+//  HAL_GPIO_WritePin(GPIOB, LED0_RED_Pin, GPIO_PIN_RESET);		//On
+//  HAL_GPIO_WritePin(GPIOB, LED1_GREEN_Pin, GPIO_PIN_RESET);	//On
 
-//  HAL_TIM_Base_Start_IT(&htim17);
+  HAL_GPIO_WritePin(GPIOB, LED0_RED_Pin, GPIO_PIN_SET);			//Off
+  HAL_GPIO_WritePin(GPIOB, LED1_GREEN_Pin, GPIO_PIN_SET);		//Off
+
+  //HAL_TIM_Base_Start_IT(&htim17);
 
 //  printf("STM32H743 USB CDC Ready!\n");
 
@@ -469,25 +473,32 @@ float pid_integral = 0.0f;
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
+//---------------------------------------------------------------------------
 	  SDRAM_Performance();
-
-	  //HAL_Delay(50); // Пауза 100 мс
 
 	  if (SDRAM_Test() != HAL_OK)
 	  {
 	      Error_Handler();  /* Мигаем светодиодом или встаём в бесконечный цикл */
 	  }
+	  //HAL_Delay(50); // Пауза 100 мс
+
+//---------------------------------------------------------------------------
 
 
-	  if(tick_led >= 500){
+	  if(tick_led >= 50){
 		  tick_led=0;
-		  HAL_GPIO_TogglePin(LED0_RED_GPIO_Port, LED0_RED_Pin);
+		  //HAL_GPIO_TogglePin(LED0_RED_GPIO_Port, LED0_RED_Pin);
+
 		  //HAL_GPIO_TogglePin(LED1_GREEN_GPIO_Port, LED1_GREEN_Pin);
 
 		  //fill_screen(0x1234);
 
-		  SDRAM_Performance();
+		  //SDRAM_Performance();
+
+//		  if (SDRAM_Test() != HAL_OK)
+//		  {
+//		      Error_Handler();  /* Мигаем светодиодом или встаём в бесконечный цикл */
+//		  }
 
 	      /* Главный цикл читает данные из DTCM — тоже быстро */
 	      //float spd = motor_speed;          /* DTCM переменная */
@@ -861,14 +872,11 @@ void MPU_Config(void)
   MPU_InitStruct.Size = MPU_REGION_SIZE_32MB;
   MPU_InitStruct.SubRegionDisable = 0x0;
   MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-//  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
   MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
   MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
   MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
   MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
   MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
-//  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-//  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
   HAL_MPU_ConfigRegion(&MPU_InitStruct);
   /* Enables the MPU */
