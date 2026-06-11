@@ -465,7 +465,13 @@ float pid_integral = 0.0f;
 
   //HAL_TIM_Base_Start_IT(&htim17);
 
-//  printf("STM32H743 USB CDC Ready!\n");
+//  printf("                        \r\n");
+//
+  printf("                        \r\n");
+//
+  printf(" STM32H743 USB CDC Ready!\r\n");
+//
+  printf("\r\n");
 
   /* USER CODE END 2 */
 
@@ -476,10 +482,10 @@ float pid_integral = 0.0f;
 //---------------------------------------------------------------------------
 	  SDRAM_Performance();
 
-	  if (SDRAM_Test() != HAL_OK)
-	  {
-	      Error_Handler();  /* Мигаем светодиодом или встаём в бесконечный цикл */
-	  }
+//	  if (SDRAM_Test() != HAL_OK)
+//	  {
+//	      Error_Handler();  /* Мигаем светодиодом или встаём в бесконечный цикл */
+//	  }
 	  //HAL_Delay(50); // Пауза 100 мс
 
 //---------------------------------------------------------------------------

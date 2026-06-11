@@ -38,7 +38,7 @@
 #define SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL   0x0000U	//A3-Addressing Mode 0: Sequential; 1: Interleave
 #define SDRAM_MODEREG_CAS_LATENCY_2           0x0020U	//[A6 A5 A4]-CAS Latency 2
 #define SDRAM_MODEREG_CAS_LATENCY_3           0x0030U	//[A6 A5 A4]-CAS Latency 3
-//#define SDRAM_MODEREG_OPERATING_MODE_STANDARD 0x0000U
+//#define SDRAM_MODEREG_OPERATING_MODE_STANDARD 0x0000U	//биты A8:A7 = 0b00, что означает «нормальный режим работы». Они равны нулю по умолчанию.
 #define SDRAM_MODEREG_WRITEBURST_MODE_SINGLE  0x0200U	//Одиночная запись A9-Write Mode(Single Write Mode) 1: Burst read and single write
 #define SDRAM_MODEREG_WRITEBURST_MODE_BURST   0x0000U	//Пакетная запись  A9-Write Mode(Single Write Mode) 0: Burst read and Burst write
 

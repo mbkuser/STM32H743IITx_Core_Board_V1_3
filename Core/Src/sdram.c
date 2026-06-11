@@ -20,7 +20,7 @@ uint32_t *dst = (uint32_t*)0xC0400000;
 
 /**
  * @brief  Полная инициализационная последовательность SDRAM
- *         согласно спецификации W9825G6KH-6
+ *         согласно спецификации W9825G6KH-6I
  * @param  hsdram: указатель на дескриптор SDRAM HAL
  * @retval HAL_OK при успехе
  */
@@ -117,12 +117,16 @@ while (DWT->CYCCNT < cycles_200us);
          - Burst Type = Sequential
          - CAS Latency = 3 (безопаснее при 100+ МГц)
          - Write Burst = Single (запись без burst)
+
+	Рабочая конфигурация единственно правильная
+
+
     --------------------------------------------------------------- */
-    tmpr = SDRAM_MODEREG_BURST_LENGTH_1            |
-           SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL     |
-           SDRAM_MODEREG_CAS_LATENCY_3             |
+    tmpr = SDRAM_MODEREG_BURST_LENGTH_1            |	// BL=1: единственный вариант для FMC H7
+           SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL     |	// не важно при BL=1, но пусть будет
+           SDRAM_MODEREG_CAS_LATENCY_3             |	// CL=3 для 166MHz, CL=2 только до ~133MHz
 //           SDRAM_MODEREG_OPERATING_MODE_STANDARD   |
-           SDRAM_MODEREG_WRITEBURST_MODE_SINGLE;
+           SDRAM_MODEREG_WRITEBURST_MODE_SINGLE;	// обязательно: FMC не умеет burst write
 //    	   SDRAM_MODEREG_WRITEBURST_MODE_BURST;
     cmd.CommandMode            = FMC_SDRAM_CMD_LOAD_MODE;
     cmd.CommandTarget          = FMC_SDRAM_CMD_TARGET_BANK1;
@@ -178,7 +182,8 @@ __ISB() — сбрасывает конвейер, чтобы следующая
 //	uint8_t count_d=0;
 //	uint8_t del_t=0;
 
-	printf("Тест 1: Start ");
+//	printf("Тест 1: Start ");
+	printf("Тест 1: Start");
     GPIOB->BSRR = (GPIO_PIN_1 << 16);  								// On LED1_GREEN
     // --- Тест 1: Walking 1s по нескольким адресам ---
     const uint32_t test_addrs[] = {0, size_words/4, size_words/2, size_words-1};
@@ -561,21 +566,24 @@ void SDRAM_Performance(void)
 	  //	  printf("WR=%d\r\n", (int)mbps_wr);
 
 
-	  printf("\r\n");
+//	  printf("\r\n");
 //	  float f = 123.4567f;
 	  float f = mbps_wr;
 
 	  int integer_part = (int)f;
 	  int fractional_part = (int)((f - integer_part) * 1000); // 3 знака
-	  printf(" WR = %d.%03d MB/s ->\r\n", integer_part, fractional_part);
+//	  printf(" SDRAM speed WR = %d.%03d MB/s ->\r\n", integer_part, fractional_part);
+
+	  printf(" SDRAM speed WR = %d.%03d MB/s ", integer_part, fractional_part);
 
 	  f = mbps_rd;
 
 	  integer_part = (int)f;
 	  fractional_part = (int)((f - integer_part) * 1000); // 3 знака
-	  printf(" RD = %d.%03d MB/s <-\r\n", integer_part, fractional_part);
+//	  printf(" SDRAM speed RD = %d.%03d MB/s <-\r\n", integer_part, fractional_part);
+	  printf(" RD = %d.%03d MB/s\r", integer_part, fractional_part);
 	  //printf("\r\n");
-	  printf("--------------------------------------------\r\n");
+	  //printf("--------------------------------------------\r\n");
 
 
 	  //HAL_Delay(1000);
