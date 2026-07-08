@@ -689,8 +689,8 @@ PD10 → FMC_D15                DQ15
 Управляющие сигналы:
 STM32H743                     W9825G6KH-6I              Описание
 PG8 → FMC_SDCLK               CLK                      Тактовый сигнал
-PH2 → FMC_SDCKE0              CKE                      Разрешение тактирования
-PH3 → FMC_SDNE0               CS#                      Выбор микросхемы (активный LOW)
+PH2 → FMC_SDCKE0              CKE                      Разрешение тактирования				(PC3 default)
+PH3 → FMC_SDNE0               CS#                      Выбор микросхемы (активный LOW)		(PC2 default)
 PF11 → FMC_SDNRAS             RAS#                     Строб строки (активный LOW)
 PG15 → FMC_SDNCAS             CAS#                     Строб столбца (активный LOW)
 PH5 → FMC_SDNWE               WE#                      Разрешение записи (активный LOW)
